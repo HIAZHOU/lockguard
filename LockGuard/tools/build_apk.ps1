@@ -1,4 +1,4 @@
-param([switch]$Online)
+﻿param([switch]$Online)
 $ErrorActionPreference = 'Stop'
 
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path

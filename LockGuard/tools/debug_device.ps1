@@ -1,4 +1,4 @@
-param([string]$Serial, [switch]$Live)
+﻿param([string]$Serial, [switch]$Live)
 $ErrorActionPreference = 'Stop'
 $adbPath = if ($env:ANDROID_HOME) { Join-Path $env:ANDROID_HOME 'platform-tools\adb.exe' } else { 'adb' }
 if ($adbPath -ne 'adb' -and -not (Test-Path -LiteralPath $adbPath)) { throw '找不到 adb。请设置 ANDROID_HOME，或把 platform-tools 加入 PATH。' }

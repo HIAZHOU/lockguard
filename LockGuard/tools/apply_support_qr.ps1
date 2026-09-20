@@ -1,4 +1,4 @@
-param([switch]$Restore)
+﻿param([switch]$Restore)
 $ErrorActionPreference = 'Stop'
 
 # 把本机私有的收款码应用到 APK 资源里，但**不提交**到仓库。
