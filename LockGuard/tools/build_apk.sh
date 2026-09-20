@@ -14,8 +14,20 @@ cd "$PROJECT_DIR"
 
 # 本机路径不写死在脚本里：优先读仓库根的 local.env（已忽略），其次用已有环境变量。
 if [ -f "$REPO_ROOT/local.env" ]; then
-  # shellcheck disable=SC1091
-  set -a; . "$REPO_ROOT/local.env"; set +a
+  # local.env 是 KEY=VALUE 配置，不是 shell 脚本。保留 Windows 反斜杠和路径中的空格。
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%$'\r'}"
+    [[ "$line" =~ ^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]] || continue
+    key="${BASH_REMATCH[1]}"
+    value="${BASH_REMATCH[2]}"
+    case "$key" in
+      ANDROID_HOME|GRADLE_HOME|GRADLE_USER_HOME|JAVA_HOME)
+        value="${value#\"}"; value="${value%\"}"
+        value="${value#\'}"; value="${value%\'}"
+        export "$key=$value"
+        ;;
+    esac
+  done < "$REPO_ROOT/local.env"
 fi
 
 : "${ANDROID_HOME:?未设置 ANDROID_HOME。请复制 local.env.example 为 local.env 并填入你的 Android SDK 路径}"

@@ -3,7 +3,7 @@
 
     <!--
       刻意不声明 android.permission.INTERNET。
-      这是物理级保证：App 在系统层面没有联网能力，位置数据无法外传。
+      App 自身不能直接建立互联网连接；系统定位服务和用户主动分享另有边界。
     -->
 
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />

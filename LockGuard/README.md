@@ -75,7 +75,7 @@ Copy-Item ..\local.env.example ..\local.env   # 然后编辑 ..\local.env
 - **想保留「支持作者」功能**：把你自己的收款码放进 `.tools/qr/real_wechat.png` 与 `real_alipay.png`（该目录已被忽略），然后执行 `powershell -File tools/apply_support_qr.ps1 -Apply`。脚本会覆盖占位图并对这两个文件设置 `skip-worktree`，避免真码被误提交。用完执行 `-Restore` 还原占位图。
 - **不需要这个功能**：直接删掉这两个占位图，并把 `ui/SupportAuthorScreen.kt` 里 `SupportMethod` 的 `qr` 置为 `null` —— 页面已有「暂未开通」兜底分支。
 
-> 公开仓库**不要**提交真实个人收款码。二维码图片会被爬虫索引，被收集后可能被用于跑分/洗钱，导致你的收款账户被风控限制。作者自己的真码只应存在于本地构建出的 APK 里。
+> 真实个人收款码可能关联支付平台上的收款人信息，不应误提交到公开源码。APK 中的图片同样可以被提取，不能把打包进 APK 当作保密措施；在公开安装包内保留真实收款码前，也应明确接受其公开可见性。
 
 ## 版本
 
@@ -86,4 +86,3 @@ Copy-Item ..\local.env.example ..\local.env   # 然后编辑 ..\local.env
 | `v0.2-baseline` | 早期基线，仅供对比 |
 
 历史技术方案文档不是当前版本的行为规范。
-
