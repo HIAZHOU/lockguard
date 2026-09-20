@@ -6,9 +6,11 @@ Android 本地锁车确认助手：根据骑行、停车和步行信号，提醒
 
 ## 下载与安装
 
-安装包通过本仓库的 **Releases** 发布。打开仓库页面 → Releases → 对应版本 → Assets，下载以 `.apk` 结尾的附件。`Source code (zip)` 和 `Source code (tar.gz)` 是源码，不能直接安装。
+**[下载 Android APK · v0.4 测试版](https://github.com/HIAZHOU/lockguard/releases/download/v0.4-beta.1/LockGuard-v0.4-beta.apk)** · [版本说明与校验文件](https://github.com/HIAZHOU/lockguard/releases/tag/v0.4-beta.1) · [全部版本](https://github.com/HIAZHOU/lockguard/releases)
 
-**当前源码尚未配套发布经过本轮检查的正式签名安装包。** 如果 Releases 中没有 APK，表示该版本还未发布，请不要把本地旧调试包当作正式版。
+适用于 Android 8.0 及以上，安装包约 9 MB。也可打开 Releases → 对应版本 → Assets，下载以 `.apk` 结尾的附件。`Source code (zip)` 和 `Source code (tar.gz)` 是源码，不能直接安装。
+
+当前提供现有 v0.4 的**测试版安装包（调试签名）**，后续逐步迭代。未来换用正式签名时可能需要卸载旧版再安装；当前也尚未实现应用内的单独隐私告知同意界面，详见[隐私说明](PRIVACY.md)。请先阅读版本说明及已知限制再决定是否试用。
 
 下载后在 Android 手机上打开 APK，仅为下载所用的浏览器或文件管理器开启「允许安装此来源的应用」。安装后可关闭该开关。若系统报告签名冲突，不要反复安装；核对发布说明中的签名和升级说明。
 

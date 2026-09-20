@@ -7,7 +7,7 @@
 | 内容 | 放置位置 | 使用者 |
 |---|---|---|
 | 源码、说明和选定的许可证 | GitHub 仓库 | 开发者、审阅者 |
-| 正式签名 APK、SHA256SUMS.txt、版本说明 | GitHub Releases 附件 | 普通 Android 用户 |
+| APK、SHA256SUMS.txt、许可证及版本说明 | GitHub Releases 附件 | 普通 Android 用户 |
 | 安装指引 | 仓库首页 README | 所有用户 |
 
 目前无需为下载入口另买服务器或建设网站。GitHub Releases 支持上传二进制附件，适合此项目的 APK 体积。参见 [GitHub 官方说明](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases)。
@@ -17,13 +17,17 @@ GitHub 在部分网络环境下可能无法稳定访问。本轮检查中，本�
 ## 用户下载路径
 
 1. 打开维护者分享的 GitHub Release 链接。
-2. 展开 Assets，下载 `LockGuard-<版本>-release.apk`，不要下载源码压缩包。
+2. 展开 Assets，下载 `.apk` 附件（本次为 `LockGuard-v0.4-beta.apk`），不要下载源码压缩包。
 3. Android 手机打开 APK；按系统提示仅允许当前安装来源。安装后可撤销此允许。
 4. 打开 App，按安装说明设置定位、通知和后台运行权限。
 
-仓库确定后，可使用 `https://github.com/<owner>/<repo>/releases` 作为版本入口。稳定版可使用 `/releases/latest`；预发布测试版应分享对应标签的 Release 链接，不能假定它出现在 latest 页面。应用目前没有自动更新功能，用户需要手动下载新版覆盖安装。
+版本入口为 [HIAZHOU/lockguard Releases](https://github.com/HIAZHOU/lockguard/releases)。本次使用新标签 `v0.4-beta.1`，发布现有 v0.4 调试签名 APK，应用内版本号仍为 0.4。稳定版可使用 `/releases/latest`；预发布测试版应分享对应标签的 Release 链接，不能假定它出现在 latest 页面。应用目前没有自动更新功能，用户需要手动下载新版；是否能覆盖安装取决于签名及版本号。
 
-## 发布前需完成
+## 本次测试版与后续迭代
+
+本次按维护者的发布决定，先提供现有 APK 供试用，保留作者自愿打赏入口，并在版本说明中披露调试签名和未完成的隐私流程。APK 内的真实作者收款二维码可以被提取；公开源码仍使用占位图，因此公共源码直接构建的打赏图片与该预编译 APK 不同。测试版标签不表示豁免任何适用义务。
+
+下列事项作为后续迭代及正式版验收清单，不代表本次全部完成：
 
 - 确定仓库归属、名称和公开范围，完成 GitHub 登录。不要把访问令牌写入源码或聊天。
 - 已采用仓库根目录 LICENSE 中的自定义非商业源码许可：禁止未经书面授权的商业化。不要在 GitHub 创建界面另选 MIT/GPL 等允许商业使用的许可证，也不要宣称本项目属于 OSI 定义的开源软件。
