@@ -33,6 +33,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.buddy.lockguard.LockGuardApp
 import com.buddy.lockguard.core.RideState
+import com.buddy.lockguard.core.DeviceGuide
 import com.buddy.lockguard.service.RideBus
 import com.buddy.lockguard.service.RideMonitorService
 
@@ -56,6 +57,16 @@ class MainActivity : ComponentActivity() {
         RideMonitorService.start(this)
     }
 
+    override fun onStart() {
+        super.onStart()
+        RideBus.uiVisible.value = true
+    }
+
+    override fun onStop() {
+        RideBus.uiVisible.value = false
+        super.onStop()
+    }
+
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) permissionRevision++
@@ -67,12 +78,17 @@ private fun AppRoot(permissionRevision: Int) {
     val context = LocalContext.current
     var refreshKey by remember { mutableIntStateOf(0) }
     var showMore by rememberSaveable { mutableStateOf(false) }
+    var showPermissions by rememberSaveable { mutableStateOf(false) }
+    var showLogs by rememberSaveable { mutableStateOf(false) }
+    var requestedPermissions by rememberSaveable { mutableStateOf(false) }
+    val deviceGuide = remember { DeviceGuide.forDevice(Build.BRAND, Build.MANUFACTURER) }
     val state by RideBus.state.collectAsState()
     val duration by RideBus.rideDurationMs.collectAsState()
     val level by RideBus.lastAlertLevel.collectAsState()
     val monitoring by RideBus.monitoring.collectAsState()
     val locationStatus by RideBus.locationStatus.collectAsState()
     val stepStatus by RideBus.stepStatus.collectAsState()
+    val powerStatus by RideBus.powerStatus.collectAsState()
     val logs by RideBus.logLines.collectAsState()
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         refreshKey++
@@ -93,22 +109,43 @@ private fun AppRoot(permissionRevision: Int) {
             if (showMore) {
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                    Text("权限与设置", style = MaterialTheme.typography.titleMedium)
-                    Text("从系统设置返回后自动更新。小米专属开关需要你在系统中核对。", style = MaterialTheme.typography.bodySmall)
-                    Button(onClick = { permissionLauncher.launch(runtimePermissions()) }, modifier = Modifier.fillMaxWidth()) {
-                        Text("申请基础权限")
+                    Text("运行保障", style = MaterialTheme.typography.titleMedium)
+                    Text(if (essentialsReady) "基础设置已就绪" else "还有 ${permissionItems.count { it.required && !it.ok }} 项基础设置待完成",
+                        style = MaterialTheme.typography.bodyMedium)
+                    Button(onClick = {
+                        val missing = runtimePermissions().filter { !granted(context, it) }.toTypedArray()
+                        // 精确定位必须与近似定位一起请求，Android 12+ 才接受该升级请求。
+                        if (missing.isNotEmpty() && !requestedPermissions) {
+                            requestedPermissions = true
+                            permissionLauncher.launch(runtimePermissions())
+                        } else {
+                            val next = permissionItems.firstOrNull { it.required && !it.ok }
+                                ?: permissionItems.firstOrNull { !it.manual && !it.ok && it.title == "电池优化白名单" }
+                            next?.open?.invoke(context) ?: openAppDetail(context)
+                        }
+                    }, modifier = Modifier.fillMaxWidth()) {
+                        Text("一键检查与设置")
                     }
-                    permissionItems.forEach { PermissionRow(it) }
+                    Text("本机建议 · ${deviceGuide.family}", style = MaterialTheme.typography.labelLarge)
+                    Text(deviceGuide.hint + " 设置名称可能随系统版本变化。", style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = { showPermissions = !showPermissions }) { Text(if (showPermissions) "收起设置详情" else "查看设置详情") }
+                    if (showPermissions) permissionItems.forEach { PermissionRow(it) }
                     HorizontalDivider()
-                    Text("运行状态", style = MaterialTheme.typography.titleMedium)
+                    Text("省电监控", style = MaterialTheme.typography.titleMedium)
+                    Text(powerStatus, style = MaterialTheme.typography.bodyMedium)
                     Text(locationStatus, style = MaterialTheme.typography.bodyMedium)
                     Text(stepStatus, style = MaterialTheme.typography.bodyMedium)
-                    Text("约 8–25 km/h 持续 15 秒后开始计时；减速或步行约 2 分钟后提醒确认。只能辅助提醒，无法读取车锁状态。",
+                    Text("支持慢骑识别。确认锁车后进入省电守候；尚未确认时保留提醒，不会因定位跳点结束。",
                         style = MaterialTheme.typography.bodySmall)
                     HorizontalDivider()
-                    Text("运行日志", style = MaterialTheme.typography.titleMedium)
-                    if (logs.isEmpty()) Text("暂无日志", style = MaterialTheme.typography.bodySmall)
-                    logs.asReversed().forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        TextButton(onClick = { showLogs = !showLogs }) { Text(if (showLogs) "收起日志" else "运行日志") }
+                        TextButton(onClick = { shareDiagnostics(context, logs, powerStatus, stepStatus) }) { Text("分享诊断") }
+                    }
+                    if (showLogs) {
+                        if (logs.isEmpty()) Text("暂无日志", style = MaterialTheme.typography.bodySmall)
+                        logs.asReversed().forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
+                    }
                     Spacer(Modifier.height(24.dp))
                 }
             } else {
@@ -214,13 +251,25 @@ private fun buildPermissionItems(context: Context): List<PermissionItem> {
                 safeStart(it, Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).setData(Uri.fromParts("package", it.packageName, null)))
             else openAppDetail(it)
         }),
-        PermissionItem("小米：省电与自启动", "应用管理中设为无限制、允许自启动；最近任务中锁定应用", false, manual = true, open = ::openAppDetail),
-        PermissionItem("小米：通知显示", "开启锁屏通知、横幅；需要全屏时再开启后台弹出界面", false, manual = true, open = ::openNotifications),
+        PermissionItem("本机后台管理", "按上方本机建议检查；系统私有开关需要手动确认", false, manual = true, open = ::openAppDetail),
     )
 }
 
 private fun openNotifications(context: Context) = safeStart(context,
     Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
+
+private fun shareDiagnostics(context: Context, logs: List<String>, power: String, steps: String) {
+    val text = buildString {
+        appendLine("LockGuard v0.3 · ${Build.BRAND} ${Build.MODEL} · Android ${Build.VERSION.RELEASE}")
+        appendLine(power)
+        appendLine(steps)
+        buildPermissionItems(context).filter { !it.manual }.forEach { appendLine("${it.title}: ${if (it.ok) "已开启" else "未开启"}") }
+        appendLine("--- 本次进程日志（不含坐标）---")
+        logs.forEach { appendLine(it) }
+    }
+    safeStart(context, Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain")
+        .putExtra(Intent.EXTRA_TEXT, text), "分享诊断日志"))
+}
 
 private fun openAppDetail(context: Context) = safeStart(context,
     Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).setData(Uri.fromParts("package", context.packageName, null)))

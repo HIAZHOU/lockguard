@@ -5,6 +5,70 @@ import org.junit.Test
 
 /** 测试实际 Kotlin 状态机；时间和定位输入均可控。 */
 class RideStateMachineTest {
+    @Test fun slowRideAtSixPointFiveKmhStartsWithLongerEvidence() {
+        val machine = RideStateMachine()
+        feed(machine, 5_000, 30_000, 1.8f)
+        assertEquals(RideState.IDLE, machine.state)
+        machine.onLocation(fix(35_000, 1.8f))
+        assertEquals(RideState.RIDING, machine.state)
+    }
+
+    @Test fun fastWalkingWithStepsDoesNotUseSlowRideChannel() {
+        val machine = RideStateMachine()
+        for (time in 1_000L..120_000L step 1_000L) {
+            machine.onStep(time)
+            if (time % 5_000L == 0L) machine.onLocation(fix(time, 1.9f))
+        }
+        assertEquals(RideState.IDLE, machine.state)
+    }
+
+    @Test fun campusSpeedNeedsOnlyEightSecondsOfEvidence() {
+        val machine = RideStateMachine()
+        machine.onLocation(fix(1_000, 2.3f))
+        machine.onLocation(fix(4_000, 2.3f))
+        machine.onLocation(fix(7_000, 2.3f))
+        assertEquals(RideState.IDLE, machine.state)
+        machine.onLocation(fix(10_000, 2.3f))
+        assertEquals(RideState.RIDING, machine.state)
+    }
+
+    @Test fun screenshotSeventySixKmhSpikeMustNotEndUnconfirmedRide() {
+        val machine = paused()
+        machine.onTick(195_000)
+        machine.onTick(375_000)
+        val started = machine.rideStartedAtMs
+        assertTrue(machine.onLocation(fix(875_000, 76f / 3.6f, 600.0, 30f)).isEmpty())
+        assertEquals(RideState.ALERT_ARMED, machine.state)
+        assertEquals(started, machine.rideStartedAtMs)
+        assertTrue(machine.onTick(1_095_000).any { it is RideEvent.AlertRaised && it.level == 3 })
+    }
+
+    @Test fun oneRidingSpeedPointCannotClearPendingAlert() {
+        val machine = paused()
+        machine.onTick(195_000)
+        val events = machine.onLocation(fix(200_000, 4f))
+        assertEquals(RideState.ALERT_ARMED, machine.state)
+        assertTrue(events.none { it is RideEvent.RolledBack })
+    }
+
+    @Test fun highSpeedDuringRideCannotActAsLockConfirmation() {
+        val machine = riding()
+        feed(machine, 65_000, 180_000, 15f)
+        assertEquals(RideState.RIDING, machine.state)
+        assertTrue(machine.rideDurationMs(180_000) > 0)
+    }
+
+    @Test fun reminderDeadlineAdvancesAndRespectsSnooze() {
+        val machine = paused()
+        assertEquals(100_000L, machine.nextDeadlineMs(75_000))
+        machine.onTick(100_000)
+        assertEquals(190_000L, machine.nextDeadlineMs(100_000))
+        machine.onTick(195_000)
+        machine.snooze(200_000)
+        assertEquals(800_000L, machine.nextDeadlineMs(200_000))
+        machine.confirmLocked()
+        assertNull(machine.nextDeadlineMs(201_000))
+    }
     private fun fix(t: Long, speed: Float = 0f, meters: Double = 0.0, accuracy: Float = 5f) =
         LocationFix(t, 30.0 + meters / 111194.93, 114.0, speed, accuracy)
 

@@ -38,13 +38,17 @@ enum class RideState {
 data class RideConfig(
     /** 约 8 km/h，需持续确认，避免单点速度触发。 */
     val rideSpeedMinMps: Float = 2.2f,
-    val rideConfirmMs: Long = 15_000L,
+    val rideConfirmMs: Long = 8_000L,
+    /** 慢骑约 6.1 km/h：更长观察且无连续步频，避免把普通步行当骑车。 */
+    val slowRideMinMps: Float = 1.7f,
+    val slowRideConfirmMs: Long = 30_000L,
+    val stopSpeedMaxMps: Float = 1.3f,
     val rideCandidateGapMs: Long = 30_000L,
     /** 从开始减速/步行计时，不要求离开停车点。 */
     val stopReminderMs: Long = 120_000L,
     /** 已有骑行会话但失去可靠定位时，只提示核实，不宣称已停车。 */
     val signalLostReminderMs: Long = 180_000L,
-    /** 判定「这不是自行车」的速度上限：25 km/h，超过则回 IDLE，防止开车通勤误判 */
+    /** 超过约 25 km/h 不作为骑行证据，但不能用来结束尚未确认的会话。 */
     val rideSpeedMaxMps: Float = 7.0f,
     /** 减速/步行多久进入等待确认状态 */
     val stillConfirmMs: Long = 30_000L,

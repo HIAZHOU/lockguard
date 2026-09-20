@@ -13,6 +13,8 @@ class RideStateMachine(val config: RideConfig = RideConfig()) {
         private set
 
     private var candidateSince: Long? = null
+    private var fastCandidateSince: Long? = null
+    private var resumeSince: Long? = null
     private var lastFixAt: Long? = null
     private var lastRideEvidenceAt: Long? = null
     private var stopSince: Long? = null
@@ -52,7 +54,7 @@ class RideStateMachine(val config: RideConfig = RideConfig()) {
     }
 
     fun onLocation(fix: LocationFix): List<RideEvent> {
-        if (!fix.speedMps.isFinite() || fix.speedMps < 0f ||
+        if (!fix.speedMps.isFinite() || fix.speedMps !in 0f..config.rideSpeedMaxMps ||
             !fix.accuracyMeters.isFinite() || fix.accuracyMeters !in 0f..config.accuracyFilterMeters ||
             !fix.lat.isFinite() || fix.lat !in -90.0..90.0 ||
             !fix.lon.isFinite() || fix.lon !in -180.0..180.0 ||
@@ -61,41 +63,46 @@ class RideStateMachine(val config: RideConfig = RideConfig()) {
         val now = fix.timestampMs
         if (lastFixAt != null && now - lastFixAt!! > config.rideCandidateGapMs) {
             candidateSince = null
+            fastCandidateSince = null
+            resumeSince = null
             velocity.clear()
         }
         lastFixAt = now
         val v = velocity.push(fix.speedMps)
         val out = mutableListOf<RideEvent>()
         if (state == RideState.IDLE) {
-            if (v in config.rideSpeedMinMps..config.rideSpeedMaxMps &&
-                fix.speedMps in config.rideSpeedMinMps..config.rideSpeedMaxMps) {
+            val walking = hasWalkingCadence(now)
+            if (v >= config.slowRideMinMps && fix.speedMps >= config.slowRideMinMps &&
+                fix.accuracyMeters <= 25f && (!walking || v >= 2.8f)) {
                 val since = candidateSince ?: now.also { candidateSince = it }
-                if (now - since >= config.rideConfirmMs) {
+                if (v >= config.rideSpeedMinMps && fix.speedMps >= config.rideSpeedMinMps) {
+                    if (fastCandidateSince == null) fastCandidateSince = now
+                } else fastCandidateSince = null
+                if (now - since >= config.slowRideConfirmMs ||
+                    fastCandidateSince?.let { now - it >= config.rideConfirmMs } == true) {
                     out += startRide(since)
                     lastFixAt = now
                     lastRideEvidenceAt = now
                 }
-            } else candidateSince = null
+            } else { candidateSince = null; fastCandidateSince = null }
             return out
         }
 
         when {
-            v > config.rideSpeedMaxMps -> {
-                state = RideState.IDLE
-                resetDetection()
-                out += RideEvent.RolledBack(RideState.IDLE, "速度超出自行车范围")
-            }
-            v >= config.rideSpeedMinMps -> {
+            v >= config.slowRideMinMps && (!hasWalkingCadence(now) || v >= 2.8f) -> {
                 lastRideEvidenceAt = now
-                if (state != RideState.RIDING ||
-                    (lastAlertLevel > 0 && alertReason == AlertReason.SIGNAL_LOST)) {
+                val since = resumeSince ?: now.also { resumeSince = it }
+                val required = if (v >= config.rideSpeedMinMps) config.rideConfirmMs else config.slowRideConfirmMs
+                if (state == RideState.RIDING && lastAlertLevel > 0 && alertReason == AlertReason.SIGNAL_LOST ||
+                    state != RideState.RIDING && now - since >= required) {
                     resetStop()
                     state = RideState.RIDING
                     out += RideEvent.RolledBack(RideState.RIDING, "恢复骑行，撤销停车提醒")
                 }
             }
             else -> {
-                beginStop(now, fix)
+                resumeSince = null
+                if (v <= config.stopSpeedMaxMps || hasWalkingCadence(now)) beginStop(now, fix)
                 parkedAnchor?.let { anchor ->
                     lastDistance = Geo.distanceMeters(anchor, fix)
                     // 距离只作提前提醒的辅助证据，扣除两个点的不确定度。
@@ -113,13 +120,32 @@ class RideStateMachine(val config: RideConfig = RideConfig()) {
 
     /** 原生计步器辅助识别下车步行，不把摇晃直接当成骑行。 */
     fun onStep(nowMs: Long): List<RideEvent> {
-        if (state == RideState.IDLE) return emptyList()
         if (steps.lastOrNull()?.let { nowMs <= it } == true) return emptyList()
         steps.addLast(nowMs)
         while (steps.isNotEmpty() && nowMs - steps.first() > 20_000L) steps.removeFirst()
+        if (state == RideState.IDLE) return emptyList()
         val recentRide = lastRideEvidenceAt?.let { nowMs - it < 15_000L } ?: false
         if (steps.size >= 6 && !recentRide) beginStop(steps.first(), null)
         return onTick(nowMs)
+    }
+
+    private fun hasWalkingCadence(now: Long) = steps.count { now - it in 0..8_000L } >= 4
+
+    /** 供系统非精确唤醒闹钟兜底；普通进程存活时仍用单调时钟实时推进。 */
+    fun nextDeadlineMs(now: Long): Long? {
+        val due = when (state) {
+            RideState.IDLE -> null
+            RideState.RIDING -> if (lastAlertLevel == 0) (lastFixAt ?: rideStartedAtMs) + config.signalLostReminderMs else null
+            RideState.PAUSED -> stopSince?.plus(config.stillConfirmMs)
+            RideState.PARKED -> stopSince?.plus(config.stopReminderMs)
+            RideState.ALERT_ARMED -> when (lastAlertLevel) {
+                0 -> alertSince
+                1 -> alertSince?.plus(config.level2DurationMs)
+                2 -> alertSince?.plus(config.escalationDurationMs)
+                else -> null
+            }
+        } ?: return null
+        return maxOf(due, snoozeUntil, lastAlertAt?.plus(config.alertCooldownMs) ?: 0L, now + 1_000L)
     }
 
     /** 由服务定时驱动，不依赖下一次 GPS 回调。 */
@@ -193,11 +219,13 @@ class RideStateMachine(val config: RideConfig = RideConfig()) {
         lastAlertAt = null
         lastAlertLevel = 0
         steps.clear()
+        resumeSince = null
     }
 
     private fun resetDetection() {
         resetStop()
         candidateSince = null
+        fastCandidateSince = null
         lastFixAt = null
         lastRideEvidenceAt = null
         snoozeUntil = 0L

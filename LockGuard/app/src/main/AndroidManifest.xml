@@ -65,6 +65,10 @@
         </receiver>
 
         <receiver
+            android:name=".service.MonitorTimerReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".service.WatchdogReceiver"
             android:enabled="true"
             android:exported="false" />
