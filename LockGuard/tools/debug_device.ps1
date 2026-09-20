@@ -1,7 +1,7 @@
 param([string]$Serial, [switch]$Live)
 $ErrorActionPreference = 'Stop'
-$adbPath = 'D:\AndroidSDK\platform-tools\adb.exe'
-if (-not (Test-Path -LiteralPath $adbPath)) { throw '找不到 adb，请修改脚本中的 SDK 路径。' }
+$adbPath = if ($env:ANDROID_HOME) { Join-Path $env:ANDROID_HOME 'platform-tools\adb.exe' } else { 'adb' }
+if ($adbPath -ne 'adb' -and -not (Test-Path -LiteralPath $adbPath)) { throw '找不到 adb。请设置 ANDROID_HOME，或把 platform-tools 加入 PATH。' }
 $deviceLines = & $adbPath devices
 if ($LASTEXITCODE -ne 0) { throw 'adb devices 失败' }
 $available = @($deviceLines | Where-Object { $_ -match '^\S+\s+device$' } | ForEach-Object { ($_ -split '\s+')[0] })

@@ -1,15 +1,30 @@
+# ---- 构建产物 ----
 **/.gradle/
 **/.kotlin/
 **/build/
 **/local.properties
 *.apk
 *.aab
+
+# ---- 签名密钥（绝不入库）----
 *.jks
 *.keystore
+*.p12
+keystore.properties
+
+# ---- 本机/会话相关 ----
 .idea/
+.vscode/
 .workbuddy/
 backups/
 diagnostics/
-*.log
-
 .tools/
+*.log
+# 本机构建路径配置（示例见 local.env.example）
+local.env
+
+# ---- 个人隐私 / 营销素材（不入公开仓库）----
+# 营销文案与招募海报仅本地留存
+marketing/
+# 本机私有的收款码原件（占位图已入库，真码用 tools/apply_support_qr.ps1 本地替换）
+# 见 LockGuard/README.md「支持作者二维码」一节

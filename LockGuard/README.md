@@ -45,12 +45,35 @@
 .\tools\build_apk.ps1
 ```
 
-本机脚本使用 JDK 17、Gradle 8.9、Android SDK 35 和 D:\GradleHome 缓存。默认离线；缓存缺失时加 `-Online`。脚本从当前源码建立临时英文路径副本，避开 Windows JDK 17 的中文 classpath 问题，测试和 Lint 通过后拷回 APK 与报告。
+本机脚本需要 JDK 17、Gradle 8.9、Android SDK 35。**这些路径不写死在仓库里**：复制仓库根的 `local.env.example` 为 `local.env` 填好自己的路径即可（`local.env` 已被忽略，不会提交）。默认离线构建；缓存缺失时加 `-Online`。脚本会从当前源码建立临时英文路径副本，避开 Windows JDK 17 的中文 classpath 问题，测试和 Lint 通过后拷回 APK 与报告。
+
+```powershell
+Copy-Item ..\local.env.example ..\local.env   # 然后编辑 ..\local.env
+.\tools\build_apk.ps1
+```
 
 - APK：`app/build/outputs/apk/debug/app-debug.apk`
 - JUnit：`app/build/reports/tests/testDebugUnitTest/index.html`
 - Lint：`app/build/reports/lint-results-debug.html`
 
-测试直接调用实际 Kotlin 实现，包括慢骑/快走、原地/5–10 米提醒、76 km/h 截图回放、同源速度过滤、GPS 窗口、权限引导品牌映射等。当前没有连接真机，构建和合成测试不能代替息屏路测或实际耗电测量。
+测试直接调用实际 Kotlin 实现，包括慢骑/快走、原地/5–10 米提醒、76 km/h 截图回放、同源速度过滤、GPS 窗口、权限引导品牌映射等。构建和合成测试不能代替息屏路测或实际耗电测量。
 
-旧版行为可通过 Git 标签 `v0.2-baseline` 查阅；历史技术方案不是 v0.3 的行为规范。
+## 支持作者二维码（重要）
+
+仓库里的 `app/src/main/res/drawable-nodpi/support_wechat.png` 与 `support_alipay.png` **是占位二维码**，不含任何真实收款目标。
+
+- **想保留「支持作者」功能**：把你自己的收款码放进 `.tools/qr/real_wechat.png` 与 `real_alipay.png`（该目录已被忽略），然后执行 `powershell -File tools/apply_support_qr.ps1 -Apply`。脚本会覆盖占位图并对这两个文件设置 `skip-worktree`，避免真码被误提交。用完执行 `-Restore` 还原占位图。
+- **不需要这个功能**：直接删掉这两个占位图，并把 `ui/SupportAuthorScreen.kt` 里 `SupportMethod` 的 `qr` 置为 `null` —— 页面已有「暂未开通」兜底分支。
+
+> 公开仓库**不要**提交真实个人收款码。二维码图片会被爬虫索引，被收集后可能被用于跑分/洗钱，导致你的收款账户被风控限制。作者自己的真码只应存在于本地构建出的 APK 里。
+
+## 版本
+
+| 标签 | 说明 |
+|---|---|
+| `v0.4` | 当前版本。增加自愿「支持作者」入口 |
+| `v0.3` | 慢骑识别、异常速度保护、待机省电、多品牌引导 |
+| `v0.2-baseline` | 早期基线，仅供对比 |
+
+历史技术方案文档不是当前版本的行为规范。
+

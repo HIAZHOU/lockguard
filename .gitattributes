@@ -1,6 +1,15 @@
+# 统一换行符，避免跨平台差异。
+# 注意：local.env 会被 bash 用 source 读取，若带 CRLF，变量值尾部会混入 \r 导致解析失败，必须强制 LF。
 * text=auto
 *.kt text eol=lf
 *.kts text eol=lf
 *.md text eol=lf
 *.ps1 text eol=lf
 *.sh text eol=lf
+*.env text eol=lf
+local.env text eol=lf
+local.env.example text eol=lf
+.gitattributes text eol=lf
+.gitignore text eol=lf
+*.png binary
+*.jar binary
