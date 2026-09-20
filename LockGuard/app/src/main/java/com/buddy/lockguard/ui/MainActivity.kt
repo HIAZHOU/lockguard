@@ -78,6 +78,7 @@ private fun AppRoot(permissionRevision: Int) {
     val context = LocalContext.current
     var refreshKey by remember { mutableIntStateOf(0) }
     var showMore by rememberSaveable { mutableStateOf(false) }
+    var showSupport by rememberSaveable { mutableStateOf(false) }
     var showPermissions by rememberSaveable { mutableStateOf(false) }
     var showLogs by rememberSaveable { mutableStateOf(false) }
     var requestedPermissions by rememberSaveable { mutableStateOf(false) }
@@ -96,6 +97,10 @@ private fun AppRoot(permissionRevision: Int) {
     }
     val permissionItems = remember(permissionRevision, refreshKey) { buildPermissionItems(context) }
     val essentialsReady = permissionItems.filter { it.required }.all { it.ok }
+    if (showSupport) {
+        SupportAuthorScreen(onBack = { showSupport = false })
+        return
+    }
     BackHandler(enabled = showMore) { showMore = false }
 
     Scaffold { innerPadding ->
@@ -141,6 +146,12 @@ private fun AppRoot(permissionRevision: Int) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         TextButton(onClick = { showLogs = !showLogs }) { Text(if (showLogs) "收起日志" else "运行日志") }
                         TextButton(onClick = { shareDiagnostics(context, logs, powerStatus, stepStatus) }) { Text("分享诊断") }
+                    }
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("锁车卫士 · ${appVersion(context)}", style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        TextButton(onClick = { showSupport = true }) { Text("支持作者", style = MaterialTheme.typography.bodySmall) }
                     }
                     if (showLogs) {
                         if (logs.isEmpty()) Text("暂无日志", style = MaterialTheme.typography.bodySmall)
@@ -260,7 +271,7 @@ private fun openNotifications(context: Context) = safeStart(context,
 
 private fun shareDiagnostics(context: Context, logs: List<String>, power: String, steps: String) {
     val text = buildString {
-        appendLine("LockGuard v0.3 · ${Build.BRAND} ${Build.MODEL} · Android ${Build.VERSION.RELEASE}")
+        appendLine("LockGuard v${appVersion(context)} · ${Build.BRAND} ${Build.MODEL} · Android ${Build.VERSION.RELEASE}")
         appendLine(power)
         appendLine(steps)
         buildPermissionItems(context).filter { !it.manual }.forEach { appendLine("${it.title}: ${if (it.ok) "已开启" else "未开启"}") }
@@ -283,3 +294,6 @@ private fun formatDuration(ms: Long): String {
     val seconds = ms / 1000
     return "%d:%02d".format(seconds / 60, seconds % 60)
 }
+
+private fun appVersion(context: Context): String =
+    context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: ""

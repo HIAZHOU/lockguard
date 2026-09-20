@@ -25,6 +25,11 @@
         android:name="android.hardware.location.gps"
         android:required="false" />
 
+    <queries>
+        <package android:name="com.tencent.mm" />
+        <package android:name="com.eg.android.AlipayGphone" />
+    </queries>
+
     <application
         android:name=".LockGuardApp"
         android:allowBackup="false"

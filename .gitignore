@@ -11,3 +11,5 @@
 backups/
 diagnostics/
 *.log
+
+.tools/
